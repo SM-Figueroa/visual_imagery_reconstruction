@@ -22,11 +22,13 @@ class Diffusion:
 	def add_noise(self, x, t, show=False):
 		# randn_like returns output of same dimensions but values are sample from N(0,1)
 		e = torch.randn_like(x)
-		x_noise = torch.sqrt(self.alpha_h[t]) * x + torch.sqrt(1-self.alpha_h[t]) * e
+		sqrt_alpha_hat = torch.sqrt(self.alpha_h[t])[:,None,None,None]
+		sqrt_one_minus_alpha_hat = torch.sqrt(1-self.alpha_h[t])[:,None,None,None]
+		x_noise = sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat  * e
 		if show:
 			plt.imshow(np.transpose(x_noise.numpy(), (1,2,0)))
 			plt.show()
-		return torch.sqrt(self.alpha_h[t]) * x + torch.sqrt(1-self.alpha_h[t]) * e, e
+		return  x_noise, e
 
 	def show_noise_steps(self, x, end, step):
 		fig, ax = plt.subplots(end//step//5, 5, figsize=(15,15))
@@ -44,18 +46,22 @@ class Diffusion:
 
 	def sample(self, model, n):
 		model.eval()
-		with torchl.no_grad():
+		with torch.no_grad():
 			# create x of complete noise sampled from N(0,1)
 			x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
 			for i in range(self.steps - 1, 0, -1):
+				print(f"Sampling from timestep: {i}")
 				# create tensor of length n with current timestep
 				t = (torch.ones(n) * i).long().to(self.device)
 				pred_noise = model(x, t)
+				alpha = self.alpha[t][:,None,None,None]
+				alpha_hat = self.alpha_h[t][:,None,None,None]
+				beta = self.beta[t][:,None,None,None]
 				if i > 1:
 					added_noise = torch.randn_like(x)
 				else:
 					added_noise = torch.zeros_like(x)
-				x = 1/torch.sqrt(self.alpha[t]) * (x - ((1 - self.alpha[t])/(torch.sqrt(1 - self.alpha_h[t])))*pred_noise) + torch.sqrt(self.beta[t])*added_noise
+				x = 1/torch.sqrt(alpha) * (x - ((1 - alpha)/(torch.sqrt(1 - alpha_hat)))*pred_noise) + torch.sqrt(beta)*added_noise
 
 		model.train()
 		# bring values between -1 and 1 then between 0 and 1, scale by 255 and convert to int
