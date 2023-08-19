@@ -3,21 +3,28 @@ import sys
 import torch
 import torch.nn as nn
 from torch import optim
-from blocks import *
-from diffusion import Diffusion
 import torchvision
 import torchvision.transforms as transforms
+import time
 sys.path.append('../')
-from utils.plts import save_images
+from training.blocks import *
+from training.diffusion import Diffusion
+from utils.plts import save_images, plot_images
+from utils.logs import print_time_elapsed
+
 
 class UNet(nn.Module):
-    def __init__(self, channels_in=3, channels_out=3, time_embed_dim=256, device='cuda'):
+    def __init__(self, channels_in=3, channels_out=3, time_embed_dim=256, device='cuda', conditional=False):
         super().__init__()
         self.time_embed_dim = time_embed_dim
         self.device = device
 
+        # project fMRI labels to proper dimension
+        if conditional:
+            self.fmri_layer = nn.Linear(None, self.time_embed_dim)
+
         # incoding and downsampling
-        self.incode = DoubleConv(channels_in, 64) # wrapper for 2 convultional layers
+        self.incode = DoubleConv(channels_in, 64) # wrapper for 2 convolutional layers
         self.down1 = Down(64, 128) # first arg is input dim and second is output dim
         self.sa1 = SelfAttention(128, 32) # first arg is chan dim and second is resolution
         self.down2 = Down(128, 256)
@@ -50,9 +57,12 @@ class UNet(nn.Module):
         pos_enc = torch.cat([pos_enc_a, pos_enc_b], dim=-1)
         return pos_enc
 
-    def forward(self, x, t):
+    def forward(self, x, t, y):
         t = t.unsqueeze(-1).type(torch.float)
         t = self.encode_timestep(t, self.time_embed_dim)
+
+        if y is not None:
+            t += self.fmri_layer(y)
 
         x1 = self.incode(x)
         x2 = self.down1(x1, t)
@@ -76,61 +86,56 @@ class UNet(nn.Module):
         return result
 
 
-def train(dataloader, epochs, lr, image_size, device='cuda', save_name=None):
-    print("Starting Training...\n\n")
 
-    model = UNet().to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
+
+def train_unconditional_diffusion(dataloader, epochs, lr, image_size, device='cuda', model_in=None):
+
+    t_start = time.time()
+    print("STARTING TRAINING...\n\n")
+
+    if model_in:
+        model = UNet().to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        checkpoint = torch.load(model_in)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        last_epoch = checkpoint['last_epoch']
+        model.train()
+
+    else:
+        model = UNet().to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        last_epoch = 0
+        
     mse = nn.MSELoss()
     diffusion = Diffusion(img_size=image_size, device=device)
     n_total_steps = len(dataloader)
-
-    torch.autograd.set_detect_anomaly(True)
 
     for epoch in range(epochs):
         for i, (images, _) in enumerate(dataloader):
             images = images.to(device)
             t = diffusion.get_sample_timestep(images.shape[0]).to(device)
             x_t, noise = diffusion.add_noise(images, t)
-            predicted_noise = model(x_t, t)
+            predicted_noise = model(x_t, t, None)
             loss = mse(noise, predicted_noise)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+            if (i+1)%100==0:
+                print(f'\tepoch {last_epoch + epoch+1}/{last_epoch + epochs}, step {i+1}/{n_total_steps}, loss = {loss.item():.4}')
 
-            if (i+1)%10==0:
-                print(f'epoch {epoch+1}/{epochs}, step {i+1}/{n_total_steps}, loss = {loss.item():.4}')
+        if (last_epoch + epoch)%50==0:
+            sampled_images = diffusion.sample(model, n=images.shape[0])
+            save_images(sampled_images, f'../results/all_imgs/training_progression/{last_epoch + epoch+1}.jpg')
 
-        sampled_images = diffusion.sample(model, n=images.shape[0])
-        save_images(sampled_images, f'../results/CIFAR/training_progression/{epoch+1}.jpg')
+    print('Saving model...')
+    torch.save({
+        'last_epoch': last_epoch + epochs,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        }, f'../results/models/unconditional_diffusion_{last_epoch + epochs}_epochs.pt')
 
-    if save_name:
-        torch.save(model.state_dict(), f'../results/models/{save_name}')
-
-
-if __name__ == '__main__':
-
-    epochs = 500
-    lr = 3e-4
-    image_size = 64
-    batch_size = 12
-    device = 'cuda'
-    data_path = 'C:/Users/User/Documents/Python Projects/torch_data'
-
-
-    transform = transforms.Compose([
-        transforms.Resize(80),
-        transforms.RandomResizedCrop(image_size, scale=(0.8, 1.0)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))])
-
-
-    train_dataset = torchvision.datasets.CIFAR10(root=data_path, train=True,
-        download=True, transform=transform)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
-        shuffle=True)
-
-
-    train(train_loader, epochs, lr, image_size, device=device, save_name='CIFAR_0')
+    print(f'COMPLETE')
+    print_time_elapsed(t_start)

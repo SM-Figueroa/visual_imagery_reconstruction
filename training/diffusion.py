@@ -45,15 +45,17 @@ class Diffusion:
 		return torch.randint(low=1, high=self.steps, size=(n,))
 
 	def sample(self, model, n):
+		print(f"SAMPLING {n} IMAGES...")
 		model.eval()
 		with torch.no_grad():
 			# create x of complete noise sampled from N(0,1)
 			x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
 			for i in range(self.steps - 1, 0, -1):
-				print(f"Sampling from timestep: {i}")
+				if i%200==0:
+					print(f"Sampling from timestep: {i} / {self.steps}")
 				# create tensor of length n with current timestep
 				t = (torch.ones(n) * i).long().to(self.device)
-				pred_noise = model(x, t)
+				pred_noise = model(x, t, None)
 				alpha = self.alpha[t][:,None,None,None]
 				alpha_hat = self.alpha_h[t][:,None,None,None]
 				beta = self.beta[t][:,None,None,None]

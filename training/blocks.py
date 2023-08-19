@@ -56,7 +56,7 @@ class Up(nn.Module):
 			DoubleConv(channels_in, channels_in, residual=True),
 			DoubleConv(channels_in, channels_out, channels_in // 2))
 
-		self. embedding_layer = nn.Sequential(
+		self.embedding_layer = nn.Sequential(
 			nn.SiLU(),
 			nn.Linear(
 				embedding_dim,
