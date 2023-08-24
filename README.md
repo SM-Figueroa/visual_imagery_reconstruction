@@ -90,9 +90,9 @@ If you want to contribute or share similar interests, don't hesitate to reach ou
 ---
 ## References
 
-[BOLD5000 datast](https://www.nature.com/articles/s41597-019-0052-3)
-[fMRI Decoding Explanation](https://cbmm.mit.edu/video/fmri-bootcamp-part-6-classification-3510)
-[Diffusion Process/Implementation](https://arxiv.org/pdf/2006.11239.pdf)
-[Model Explanation Video](https://www.youtube.com/watch?v=HoKDTa5jHvg&t=1774s)
-[OpenAI Paper](https://arxiv.org/pdf/2105.05233.pdf)
+[BOLD5000 datast](https://www.nature.com/articles/s41597-019-0052-3)\n
+[fMRI Decoding Explanation](https://cbmm.mit.edu/video/fmri-bootcamp-part-6-classification-3510)\n
+[Diffusion Process/Implementation](https://arxiv.org/pdf/2006.11239.pdf)\n
+[Model Explanation Video](https://www.youtube.com/watch?v=HoKDTa5jHvg&t=1774s)\n
+[OpenAI Paper](https://arxiv.org/pdf/2105.05233.pdf)\n
 
