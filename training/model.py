@@ -139,3 +139,62 @@ def train_unconditional_diffusion(dataloader, epochs, lr, image_size, device='cu
 
     print(f'COMPLETE')
     print_time_elapsed(t_start)
+
+
+
+
+
+
+def train_conditional_diffusion(dataloader, epochs, lr, image_size, device='cuda', model_in=None):
+
+    t_start = time.time()
+    print("STARTING TRAINING...\n\n")
+
+    if model_in:
+        model = UNet().to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        checkpoint = torch.load(model_in)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        last_epoch = checkpoint['last_epoch']
+        model.train()
+
+    else:
+        model = UNet().to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
+        last_epoch = 0
+        
+    mse = nn.MSELoss()
+    diffusion = Diffusion(img_size=image_size, device=device)
+    n_total_steps = len(dataloader)
+
+    for epoch in range(epochs):
+        for i, (images, fmri_arr) in enumerate(dataloader):
+            images = images.to(device)
+            fmri_arr = fmri_arr.to(device)
+            t = diffusion.get_sample_timestep(images.shape[0]).to(device)
+            x_t, noise = diffusion.add_noise(images, t)
+            predicted_noise = model(x_t, t, fmri_arr)
+            loss = mse(noise, predicted_noise)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if (i+1)%100==0:
+                print(f'\tepoch {last_epoch + epoch+1}/{last_epoch + epochs}, step {i+1}/{n_total_steps}, loss = {loss.item():.4}')
+
+        if (last_epoch + epoch)%50==0:
+            sampled_images = diffusion.sample(model, n=images.shape[0])
+            save_images(sampled_images, f'../results/fmri_imgs/training_progression/{last_epoch + epoch+1}.jpg')
+
+    print('Saving model...')
+    torch.save({
+        'last_epoch': last_epoch + epochs,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        }, f'../results/models/conditional_diffusion_{last_epoch + epochs}_epochs.pt')
+
+    print(f'COMPLETE')
+    print_time_elapsed(t_start)
+
