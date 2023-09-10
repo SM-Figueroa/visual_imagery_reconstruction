@@ -4,6 +4,23 @@ import torch.nn.functional as F
 
 
 class DoubleConv(nn.Module):
+	"""
+
+    Compressed convolutional layer consisting of 2 convolutional layers connected
+    to group norm layers and separated by a GELU activation function.
+
+    Parameters
+    ----------
+    channels_in : int
+        number of input channels to layer.
+    channels_out: int
+    	number of output channels from layer.
+    mid_channels: int, default(None)
+    	number of channels between two convolutional layers.
+    residual: bool, default(False)
+    	whether or not a resiudal input projects to this layer.
+
+    """
 
 	def __init__(self, channels_in, channels_out, mid_channels=None, residual=False):
 		super().__init__()
@@ -26,6 +43,20 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
+	"""
+
+    Downsampling layer including a maxpool layer followed by two convolutional layers.
+
+    Parameters
+    ----------
+    channels_in : int
+        number of input channels to layer.
+    channels_out: int
+    	number of output channels from layer.
+    embedding_dim: int, default(256)
+    	dimensions of time embedding adding at this layer.
+
+    """
 	def __init__(self, channels_in, channels_out, embedding_dim=256):
 		super().__init__()
 		self.maxpool_conv = nn.Sequential(
@@ -48,6 +79,20 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
+	"""
+
+    Upsampling layer including two convolutional layers.
+
+    Parameters
+    ----------
+    channels_in : int
+        number of input channels to layer.
+    channels_out: int
+    	number of output channels from layer.
+    embedding_dim: int, default(256)
+    	dimensions of time embedding adding at this layer.
+
+    """
 	def __init__(self, channels_in, channels_out, embedding_dim=256):
 		super().__init__()
 
@@ -71,6 +116,18 @@ class Up(nn.Module):
 
 
 class SelfAttention(nn.Module):
+	"""
+
+    Self Attention layer including a multihead attention layer followed by two linear layers.
+
+    Parameters
+    ----------
+    channels : int
+        number of channels in and out of layer.
+    size: int
+    	size of images input through layer.
+
+    """
 	def __init__(self, channels, size):
 		super(SelfAttention, self).__init__()
 		self.channels = channels

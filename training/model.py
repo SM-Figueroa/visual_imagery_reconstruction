@@ -14,6 +14,23 @@ from utils.logs import print_time_elapsed
 
 
 class UNet(nn.Module):
+    """
+    Class combining all layers of UNet model.
+
+    Parameters
+    ----------
+    channels_in : int
+        number of image channels in to model.
+    channels_out: int
+        number of image channels out of the model.
+    time_embed_dim: int
+        dimension of time embedding included in model.
+    device: str
+        device to store model on.
+    conditional:
+        whether or not the model is conditioned on fMRI data.
+
+    """
     def __init__(self, channels_in=3, channels_out=3, time_embed_dim=256, device='cuda', conditional=False):
         super().__init__()
         self.time_embed_dim = time_embed_dim
@@ -89,6 +106,29 @@ class UNet(nn.Module):
 
 
 def train_unconditional_diffusion(dataloader, epochs, lr, image_size, device='cuda', model_in=None):
+    """
+    A function to perform training of unconditional generative diffusion model.
+
+    Parameters
+    ----------
+    dataloader: torch.utils.data.DataLoader
+        dataloader object holding image data.
+    epochs: int
+        number of epochs to train.
+    lr: float
+        learning rate.
+    image_size: int
+        size of input images.
+    device: str, default('cuda')
+        device to perform training on.
+    model_in: str, default(None)
+        path to previous model to initiate training on.
+
+    Returns
+    ------
+    None
+
+    """
 
     t_start = time.time()
     print("STARTING TRAINING...\n\n")
@@ -146,7 +186,29 @@ def train_unconditional_diffusion(dataloader, epochs, lr, image_size, device='cu
 
 
 def train_conditional_diffusion(dataloader, epochs, lr, image_size, device='cuda', model_in=None):
+    """
+    A function to perform training of conditional generative diffusion model.
 
+    Parameters
+    ----------
+    dataloader: fMRILabeledDataLoader
+        dataloader object holding image data and fmri data respectively paired.
+    epochs: int
+        number of epochs to train.
+    lr: float
+        learning rate.
+    image_size: int
+        size of input images.
+    device: str, default('cuda')
+        device to perform training on.
+    model_in: str, default(None)
+        path to previous model to initiate training on.
+
+    Returns
+    ------
+    None
+
+    """
     t_start = time.time()
     print("STARTING TRAINING...\n\n")
 

@@ -4,6 +4,19 @@ import torchvision.transforms as T
 
 
 class fMRILabeledDataLoader:
+	"""
+    DataLoader to pair and iterate over images and respect fMRI data for a subject.
+
+    Parameters
+    ----------
+    label_path : str
+        path to ordered images labels for a subject.
+    image_path: str
+    	path to folder full of all training images.
+    fmri_path: str
+    	path to preprocessed fMRI data for subject.
+
+    """
 	
 	def __init__(label_path, image_path, fmri_path):
 
