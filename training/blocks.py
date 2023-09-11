@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class DoubleConv(nn.Module):
-	"""
+    """
 
     Compressed convolutional layer consisting of 2 convolutional layers connected
     to group norm layers and separated by a GELU activation function.
@@ -14,36 +14,36 @@ class DoubleConv(nn.Module):
     channels_in : int
         number of input channels to layer.
     channels_out: int
-    	number of output channels from layer.
+        number of output channels from layer.
     mid_channels: int, default(None)
-    	number of channels between two convolutional layers.
+        number of channels between two convolutional layers.
     residual: bool, default(False)
-    	whether or not a resiudal input projects to this layer.
+        whether or not a resiudal input projects to this layer.
 
     """
 
-	def __init__(self, channels_in, channels_out, mid_channels=None, residual=False):
-		super().__init__()
-		self.residual = residual
-		if not mid_channels:
-			mid_channels = channels_out
-		self.double_conv = nn.Sequential(
-			nn.Conv2d(channels_in, mid_channels, kernel_size=3, padding=1, bias=False),
-			nn.GroupNorm(1, mid_channels),
-			nn.GELU(),
-			nn.Conv2d(mid_channels, channels_out, kernel_size=3, padding=1, bias=False),
-			nn.GroupNorm(1, channels_out))
+    def __init__(self, channels_in, channels_out, mid_channels=None, residual=False):
+        super().__init__()
+        self.residual = residual
+        if not mid_channels:
+            mid_channels = channels_out
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(channels_in, mid_channels, kernel_size=3, padding=1, bias=False),
+            nn.GroupNorm(1, mid_channels),
+            nn.GELU(),
+            nn.Conv2d(mid_channels, channels_out, kernel_size=3, padding=1, bias=False),
+            nn.GroupNorm(1, channels_out))
 
-	def forward(self, x):
-		if self.residual:
-			return F.gelu(x + self.double_conv(x))
-		else:
-			return self.double_conv(x)
+    def forward(self, x):
+        if self.residual:
+            return F.gelu(x + self.double_conv(x))
+        else:
+            return self.double_conv(x)
 
 
 
 class Down(nn.Module):
-	"""
+    """
 
     Downsampling layer including a maxpool layer followed by two convolutional layers.
 
@@ -52,34 +52,34 @@ class Down(nn.Module):
     channels_in : int
         number of input channels to layer.
     channels_out: int
-    	number of output channels from layer.
+        number of output channels from layer.
     embedding_dim: int, default(256)
-    	dimensions of time embedding adding at this layer.
+        dimensions of time embedding adding at this layer.
 
     """
-	def __init__(self, channels_in, channels_out, embedding_dim=256):
-		super().__init__()
-		self.maxpool_conv = nn.Sequential(
-			nn.MaxPool2d(2),
-			DoubleConv(channels_in, channels_in, residual=True),
-			DoubleConv(channels_in, channels_out))
+    def __init__(self, channels_in, channels_out, embedding_dim=256):
+        super().__init__()
+        self.maxpool_conv = nn.Sequential(
+            nn.MaxPool2d(2),
+            DoubleConv(channels_in, channels_in, residual=True),
+            DoubleConv(channels_in, channels_out))
 
-		# project time step to proper dimensions
-		self.embedding_layer = nn.Sequential(
-			nn.SiLU(),
-			nn.Linear(
-				embedding_dim,
-				channels_out))
+        # project time step to proper dimensions
+        self.embedding_layer = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                embedding_dim,
+                channels_out))
 
-	def forward(self, x, t):
-		x = self.maxpool_conv(x)
-		embedding = self.embedding_layer(t)[:,:,None,None].repeat(1,1,x.shape[-2],x.shape[-1])
-		return x + embedding
+    def forward(self, x, t):
+        x = self.maxpool_conv(x)
+        embedding = self.embedding_layer(t)[:,:,None,None].repeat(1,1,x.shape[-2],x.shape[-1])
+        return x + embedding
 
 
 
 class Up(nn.Module):
-	"""
+    """
 
     Upsampling layer including two convolutional layers.
 
@@ -88,35 +88,35 @@ class Up(nn.Module):
     channels_in : int
         number of input channels to layer.
     channels_out: int
-    	number of output channels from layer.
+        number of output channels from layer.
     embedding_dim: int, default(256)
-    	dimensions of time embedding adding at this layer.
+        dimensions of time embedding adding at this layer.
 
     """
-	def __init__(self, channels_in, channels_out, embedding_dim=256):
-		super().__init__()
+    def __init__(self, channels_in, channels_out, embedding_dim=256):
+        super().__init__()
 
-		self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-		self.conv = nn.Sequential(
-			DoubleConv(channels_in, channels_in, residual=True),
-			DoubleConv(channels_in, channels_out, channels_in // 2))
+        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.conv = nn.Sequential(
+            DoubleConv(channels_in, channels_in, residual=True),
+            DoubleConv(channels_in, channels_out, channels_in // 2))
 
-		self.embedding_layer = nn.Sequential(
-			nn.SiLU(),
-			nn.Linear(
-				embedding_dim,
-				channels_out))
+        self.embedding_layer = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(
+                embedding_dim,
+                channels_out))
 
-	def forward(self, x, skip_x, t):
-		x = self.up(x)
-		x = torch.cat([skip_x, x], dim=1)
-		x = self.conv(x)
-		embedding = self.embedding_layer(t)[:,:,None,None].repeat(1, 1, x.shape[-2], x.shape[-1])
-		return x + embedding
+    def forward(self, x, skip_x, t):
+        x = self.up(x)
+        x = torch.cat([skip_x, x], dim=1)
+        x = self.conv(x)
+        embedding = self.embedding_layer(t)[:,:,None,None].repeat(1, 1, x.shape[-2], x.shape[-1])
+        return x + embedding
 
 
 class SelfAttention(nn.Module):
-	"""
+    """
 
     Self Attention layer including a multihead attention layer followed by two linear layers.
 
@@ -125,26 +125,26 @@ class SelfAttention(nn.Module):
     channels : int
         number of channels in and out of layer.
     size: int
-    	size of images input through layer.
+        size of images input through layer.
 
     """
-	def __init__(self, channels, size):
-		super(SelfAttention, self).__init__()
-		self.channels = channels
-		self.size = size
-		self.mha = nn.MultiheadAttention(channels, 4, batch_first=True)
-		self.ln = nn.LayerNorm([channels])
-		self.ff_self = nn.Sequential(
-			nn.LayerNorm([channels]),
-			nn.Linear(channels, channels),
-			nn.GELU(),
-			nn.Linear(channels, channels))
+    def __init__(self, channels, size):
+        super(SelfAttention, self).__init__()
+        self.channels = channels
+        self.size = size
+        self.mha = nn.MultiheadAttention(channels, 4, batch_first=True)
+        self.ln = nn.LayerNorm([channels])
+        self.ff_self = nn.Sequential(
+            nn.LayerNorm([channels]),
+            nn.Linear(channels, channels),
+            nn.GELU(),
+            nn.Linear(channels, channels))
 
 
-	def forward(self, x):
-		x = x.view(-1, self.channels, self.size **2).swapaxes(1,2)
-		x_ln = self.ln(x)
-		attention_value, _ = self.mha(x_ln, x_ln, x_ln)
-		attention_value = attention_value + x # apparently += is a nono in this situation
-		attention_value = self.ff_self(attention_value) + attention_value # apparently += is a nono in this situation
-		return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
+    def forward(self, x):
+        x = x.view(-1, self.channels, self.size **2).swapaxes(1,2)
+        x_ln = self.ln(x)
+        attention_value, _ = self.mha(x_ln, x_ln, x_ln)
+        attention_value = attention_value + x # apparently += is a nono in this situation
+        attention_value = self.ff_self(attention_value) + attention_value # apparently += is a nono in this situation
+        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
