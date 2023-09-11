@@ -71,9 +71,13 @@ The hyperparameters in this example are the ones used during training of the mod
 ---
 ## Results
 
-After training the unconditional model for 500 epochs, the following generations were created:
+After training the unconditional model for 500 epochs, the following generations were created (each row is an additional 100 epochs of training):
 
 ![Training in progress](results/all_imgs/training_progression/1.jpg)
+![Training in progress](results/all_imgs/training_progression/101.jpg)
+![Training in progress](results/all_imgs/training_progression/201.jpg)
+![Training in progress](results/all_imgs/training_progression/301.jpg)
+![Training in progress](results/all_imgs/training_progression/351.jpg)
 
 The conditional model including the fMRI data as input produced the following results compared to input:
 
